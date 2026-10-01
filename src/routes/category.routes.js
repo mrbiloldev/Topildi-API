@@ -6,8 +6,8 @@ const categoryRoutes = Router()
 categoryRoutes
     .get('/categories', categoryController.getAll)
     .post('/categories', categoryController.createCat)
-    .put('categories/:id', categoryController.update)
-    .delete('categories/:id', categoryController.delCat)
+    .put('/categories/:id', categoryController.update)
+    .delete('/categories/:id', categoryController.delCat)
 
 
 export default categoryRoutes
