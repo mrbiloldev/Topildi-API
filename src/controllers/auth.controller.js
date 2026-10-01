@@ -1,6 +1,8 @@
 import { AppData } from "../config/data-source.js"
+import { messageEmail } from "../config/mailer.js"
 import { User } from "../entities/user.entity.js"
-import { hashPassword } from "../helpers/hash.js"
+import { comparePassword, hashPassword } from "../helpers/hash.js"
+import { generateAccessToken } from "../helpers/jwt.js"
 import { saveOtp, verifyOtp } from "../helpers/otp.js"
 
 const userRepo = AppData.getRepository(User)
@@ -20,10 +22,14 @@ class AuthController {
                     message: "Email already exists"
                 })
             }
-
-            const otp = await saveOtp(email)
+            
             const hashedPass = await hashPassword(password)
-            console.log(otp);
+            const otp = await saveOtp(email)
+            const isSent=await messageEmail(email, 'Email verification', full_name, `Sizning kodingiz: ${otp.otp}`)
+            
+             if (!isSent) {
+                console.log(`OTP kod ${email} : ${otp.otp}`)
+            }
             
 
             const user = await userRepo.create({
@@ -34,7 +40,7 @@ class AuthController {
 
             return res.status(201).json({
                 success: true,
-                message: "User created",
+                message: "Emailingizga kod jo'natildi",
                 data: savedUser
             })
 
@@ -62,12 +68,12 @@ class AuthController {
                 })
             }
 
-            const result = await verifyOtp(email, code)
+            const otp = await verifyOtp(email, code)
 
-            if(!result.success){
+            if(!otp.success){
                 return res.status(400).json({
                     success: false,
-                    message: result.message
+                    message: otp.message
                 })
             }
 
@@ -75,6 +81,8 @@ class AuthController {
                 {email},
                 {isVerified: true}
             )
+
+            await messageEmail(email, 'Email Verification', user.full_name, 'Emailingiz muvaffaqiyatli tasdiqlandi')
             
             return res.json({
                 success: true,
@@ -107,16 +115,20 @@ class AuthController {
                 })
             }
             
-             const result = await saveOtp(email);
+             const otp = await saveOtp(email);
 
-            if (!result.success) {
+            if (!otp.success) {
                 return res.status(429).json({
                     success: false,
-                    message: result.message
+                    message: otp.message
                 });
             }
 
-            console.log(result.otp);
+            const isSent=await messageEmail(email, 'Email verification', user.full_name, `Sizning kodingiz: ${otp.otp}`)
+            
+             if (!isSent) {
+                console.log(`OTP kod ${email} : ${otp.otp}`)
+            }
             
 
             return res.json({
@@ -131,13 +143,78 @@ class AuthController {
     }
     async login(req, res, next) {
         try {
-            
+            const {email, password}=req.body
+            const user=await userRepo.findOne({
+                where:{email}
+            })
+
+            if(!user){
+                return res.status(404).json({
+                    success: false,
+                    message: "Email or password is incorrect"
+                })
+            }
+
+            if(!user.isVerified){
+                return res.status(403).json({
+                    success: false,
+                    message: "Email is not verified"
+                })
+            }
+
+            const compare=await comparePassword(password,user.password)
+
+            if(!compare){
+                return res.status(400).json({
+                    success: false,
+                    message: "Email or password is incorrect"
+                })
+            }
+
+            const payload={id: user.id, email: user.email}
+            const accessToken=generateAccessToken(payload)
+            const refreshToken=generateAccessToken(payload)
+
+            return res.json({
+                success: true,
+                message: "Logged in successfully",
+                accessToken,
+                refreshToken
+            })
+
+
         } catch (err) {
             next(err)
         }
     }
     async forgotPass(req, res, next) {
         try {
+            const {email}=req.body
+            const user=await userRepo.findOne({
+                where:{email}
+            })
+
+            if(!user){
+                return res.status(404).json({
+                    success: false,
+                    message: "Useer not found"
+                })
+            }
+
+            const otp = await saveOtp(email)
+            const isSent=await messageEmail(email, 'Reset password', user.full_name, `Sizning kodingiz: ${otp.otp}`)
+            
+             if (!isSent) {
+                console.log(`OTP kod ${email} : ${otp.otp}`)
+            }
+                console.log(`OTP kod ${email} : ${otp.otp}`)
+
+
+            return res.json({
+                success: true,
+                message: "Emailingizga kod yuborildi"
+            })
+
 
         } catch (err) {
             next(err)
@@ -145,6 +222,37 @@ class AuthController {
     }
     async resetPass(req, res, next) {
         try {
+            const {email, code, newPassword}=req.body
+            const user=await userRepo.findOne({
+                where:{email}
+            })
+
+            if(!user){
+                 return res.status(404).json({
+                    success: false,
+                    message: "Useer not found"
+                })
+            }
+
+            const otp = await verifyOtp(email, code)
+
+            if(!otp.success){
+                return res.status(400).json({
+                    success: false,
+                    message: otp.message
+                })
+            }
+
+            const hashedPass=await hashPassword(newPassword)
+            await userRepo.update(
+                {email},
+                {password: hashedPass}
+            )
+
+            return res.json({
+                success: true,
+                message: "Parol muvaffaqiyatli o'zgartirildi"
+            })
 
         } catch (err) {
             next(err)
@@ -152,6 +260,22 @@ class AuthController {
     }
     async me(req, res, next) {
         try {
+            const id=req.user.id
+            const user=await userRepo.findOne({
+                where:{id}
+            })
+
+            if(!user){
+                return res.status(404).json({
+                    success: false,
+                    message: "User not found"
+                })
+            }
+
+            return res.json({
+                success: true,
+                data: user
+            })
 
         } catch (err) {
             next(err)

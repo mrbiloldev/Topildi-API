@@ -1,6 +1,6 @@
 import { verifyAccessToken } from "../helpers/jwt.js";
 
-const authMiddleware=(req,res,next)=>{
+export const authMiddleware=(req,res,next)=>{
     const authHeader=req.headers.authorization
 
     if(!authHeader || !authHeader.startsWith("Bearer")){
