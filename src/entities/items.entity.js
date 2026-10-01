@@ -70,10 +70,15 @@ export const Item = new EntitySchema({
             type: "many-to-one",
             target: "Category",
             joinColumn: {
-                name: "category_id",
+                name: "category_id"
             },
             onDelete: "RESTRICT"
-        }
+        },
 
+        images: {
+            type: "one-to-many",
+            target: "ItemImage",
+            inverseSide: "item"
+        }
     }
 })

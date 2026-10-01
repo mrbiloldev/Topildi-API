@@ -19,6 +19,7 @@ app.use('/api', authRoutes)
 app.use('/api', categoryRoutes)
 app.use('/api', claimRoutes)
 app.use('/api', itemRoutes)
+app.use('/uploads', express.static("uploads"))
 
 app.use(errorHandler)
 
