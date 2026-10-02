@@ -4,7 +4,7 @@ export const authMiddleware=(req,res,next)=>{
     const authHeader=req.headers.authorization
 
     if(!authHeader || !authHeader.startsWith("Bearer")){
-        return res.startsWith(401).json({
+        return res.status(401).json({
             success:false,
             message:"Token not found"
         })

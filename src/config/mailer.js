@@ -11,12 +11,21 @@ const transporter=nodemailer.createTransport({
     }
 })
 
-export const messageEmail=async (toEmail,subject, full_name,message)=>{
-    transporter.sendMail({
-        from: "Topildi Service",
-        to: toEmail,
-        subject: subject,
-        html: `<h1>Salom ${full_name.toUpperCase()}</h1> \n
-         <h1>${message}</h1>`
-    })
+export const messageEmail = async (toEmail, subject, full_name, message) => {
+    try {
+        await transporter.sendMail({
+            from: `"Topildi Service" <${process.env.EMAIL_USER}>`,
+            to: toEmail,
+            subject,
+            html: `
+                <h1>Salom ${full_name}</h1>
+                <p>${message}</p>
+            `
+        })
+
+        return true
+    } catch (err) {
+        console.log("Email yuborishda xato:", err)
+        return false
+    }
 }

@@ -2,7 +2,7 @@ import { AppData } from "../config/data-source.js"
 import { messageEmail } from "../config/mailer.js"
 import { User } from "../entities/user.entity.js"
 import { comparePassword, hashPassword } from "../helpers/hash.js"
-import { generateAccessToken } from "../helpers/jwt.js"
+import { generateAccessToken, generateRefreshToken } from "../helpers/jwt.js"
 import { saveOtp, verifyOtp } from "../helpers/otp.js"
 
 const userRepo = AppData.getRepository(User)
@@ -22,15 +22,15 @@ class AuthController {
                     message: "Email already exists"
                 })
             }
-            
+
             const hashedPass = await hashPassword(password)
             const otp = await saveOtp(email)
-            const isSent=await messageEmail(email, 'Email verification', full_name, `Sizning kodingiz: ${otp.otp}`)
-            
-             if (!isSent) {
+            const isSent = await messageEmail(email, 'Email verification', full_name, `Sizning kodingiz: ${otp.otp}`)
+
+            if (!isSent) {
                 console.log(`OTP kod ${email} : ${otp.otp}`)
             }
-            
+
 
             const user = await userRepo.create({
                 full_name, email, phone, password: hashedPass
@@ -50,18 +50,18 @@ class AuthController {
     }
     async verify(req, res, next) {
         try {
-            const {email, code}=req.body
-            const user=await userRepo.findOne({
-                where: {email}
+            const { email, code } = req.body
+            const user = await userRepo.findOne({
+                where: { email }
             })
 
-            if(!user){
+            if (!user) {
                 return res.status(404).json({
                     success: false,
                     message: "User not found"
                 })
             }
-            if(user.isVerified){
+            if (user.isVerified) {
                 return res.status(400).json({
                     success: false,
                     message: "Email already verified"
@@ -70,7 +70,7 @@ class AuthController {
 
             const otp = await verifyOtp(email, code)
 
-            if(!otp.success){
+            if (!otp.success) {
                 return res.status(400).json({
                     success: false,
                     message: otp.message
@@ -78,12 +78,12 @@ class AuthController {
             }
 
             await userRepo.update(
-                {email},
-                {isVerified: true}
+                { email },
+                { isVerified: true }
             )
 
             await messageEmail(email, 'Email Verification', user.full_name, 'Emailingiz muvaffaqiyatli tasdiqlandi')
-            
+
             return res.json({
                 success: true,
                 message: "Email is verified successfully"
@@ -96,12 +96,12 @@ class AuthController {
     }
     async resendOtp(req, res, next) {
         try {
-            const {email}=req.body
-            const user=await userRepo.findOne({
-                where:{email}
+            const { email } = req.body
+            const user = await userRepo.findOne({
+                where: { email }
             })
 
-            if(!user){
+            if (!user) {
                 return res.status(404).json({
                     success: false,
                     message: "Useer not found"
@@ -114,8 +114,8 @@ class AuthController {
                     message: "Email already verified "
                 })
             }
-            
-             const otp = await saveOtp(email);
+
+            const otp = await saveOtp(email);
 
             if (!otp.success) {
                 return res.status(429).json({
@@ -124,12 +124,12 @@ class AuthController {
                 });
             }
 
-            const isSent=await messageEmail(email, 'Email verification', user.full_name, `Sizning kodingiz: ${otp.otp}`)
-            
-             if (!isSent) {
+            const isSent = await messageEmail(email, 'Email verification', user.full_name, `Sizning kodingiz: ${otp.otp}`)
+
+            if (!isSent) {
                 console.log(`OTP kod ${email} : ${otp.otp}`)
             }
-            
+
 
             return res.json({
                 success: true,
@@ -143,37 +143,41 @@ class AuthController {
     }
     async login(req, res, next) {
         try {
-            const {email, password}=req.body
-            const user=await userRepo.findOne({
-                where:{email}
+            const { email, password } = req.body
+            const user = await userRepo.findOne({
+                where: { email }
             })
 
-            if(!user){
+            if (!user) {
                 return res.status(404).json({
                     success: false,
                     message: "Email or password is incorrect"
                 })
             }
 
-            if(!user.isVerified){
+            if (!user.isVerified) {
                 return res.status(403).json({
                     success: false,
                     message: "Email is not verified"
                 })
             }
 
-            const compare=await comparePassword(password,user.password)
+            const compare = await comparePassword(password, user.password)
 
-            if(!compare){
+            if (!compare) {
                 return res.status(400).json({
                     success: false,
                     message: "Email or password is incorrect"
                 })
             }
 
-            const payload={id: user.id, email: user.email}
-            const accessToken=generateAccessToken(payload)
-            const refreshToken=generateAccessToken(payload)
+            const payload = {
+                id: user.id,
+                email: user.email,
+                role: user.role
+            }
+            const accessToken = generateAccessToken(payload)
+            const refreshToken = generateRefreshToken(payload)
 
             return res.json({
                 success: true,
@@ -189,12 +193,12 @@ class AuthController {
     }
     async forgotPass(req, res, next) {
         try {
-            const {email}=req.body
-            const user=await userRepo.findOne({
-                where:{email}
+            const { email } = req.body
+            const user = await userRepo.findOne({
+                where: { email }
             })
 
-            if(!user){
+            if (!user) {
                 return res.status(404).json({
                     success: false,
                     message: "Useer not found"
@@ -202,12 +206,12 @@ class AuthController {
             }
 
             const otp = await saveOtp(email)
-            const isSent=await messageEmail(email, 'Reset password', user.full_name, `Sizning kodingiz: ${otp.otp}`)
-            
-             if (!isSent) {
+            const isSent = await messageEmail(email, 'Reset password', user.full_name, `Sizning kodingiz: ${otp.otp}`)
+
+            if (!isSent) {
                 console.log(`OTP kod ${email} : ${otp.otp}`)
             }
-                console.log(`OTP kod ${email} : ${otp.otp}`)
+            console.log(`OTP kod ${email} : ${otp.otp}`)
 
 
             return res.json({
@@ -222,13 +226,13 @@ class AuthController {
     }
     async resetPass(req, res, next) {
         try {
-            const {email, code, newPassword}=req.body
-            const user=await userRepo.findOne({
-                where:{email}
+            const { email, code, newPassword } = req.body
+            const user = await userRepo.findOne({
+                where: { email }
             })
 
-            if(!user){
-                 return res.status(404).json({
+            if (!user) {
+                return res.status(404).json({
                     success: false,
                     message: "Useer not found"
                 })
@@ -236,17 +240,17 @@ class AuthController {
 
             const otp = await verifyOtp(email, code)
 
-            if(!otp.success){
+            if (!otp.success) {
                 return res.status(400).json({
                     success: false,
                     message: otp.message
                 })
             }
 
-            const hashedPass=await hashPassword(newPassword)
+            const hashedPass = await hashPassword(newPassword)
             await userRepo.update(
-                {email},
-                {password: hashedPass}
+                { email },
+                { password: hashedPass }
             )
 
             return res.json({
@@ -260,12 +264,12 @@ class AuthController {
     }
     async me(req, res, next) {
         try {
-            const id=req.user.id
-            const user=await userRepo.findOne({
-                where:{id}
+            const id = req.user.id
+            const user = await userRepo.findOne({
+                where: { id }
             })
 
-            if(!user){
+            if (!user) {
                 return res.status(404).json({
                     success: false,
                     message: "User not found"
