@@ -321,40 +321,40 @@ class ItemController {
     }
     async delItem(req, res, next) {
     try {
-        const id = Number(req.params.id);
-        const userId = Number(req.user.id);
-        const role = req.user.role;
+        const id = Number(req.params.id)
+        const userId = Number(req.user.id)
+        const role = req.user.role
 
         if (!Number.isInteger(id) || id <= 0) {
             return res.status(400).json({
                 success: false,
                 message: "Item id noto'g'ri"
-            });
+            })
         }
 
         const item = await itemRepo.findOne({
             where: { id }
-        });
+        })
 
         if (!item) {
             return res.status(404).json({
                 success: false,
                 message: "Item topilmadi"
-            });
+            })
         }
 
         if (item.user_id !== userId && role !== "admin") {
             return res.status(403).json({
                 success: false,
                 message: "Bu e'lonni o'chirishga ruxsatingiz yo'q"
-            });
+            })
         }
 
         const images = await itemImageRepo.find({
             where: {
                 item_id: id
             }
-        });
+        })
 
         for (const image of images) {
             const filePath = path.join(
@@ -362,10 +362,10 @@ class ItemController {
                 "uploads",
                 "items",
                 image.filename
-            );
+            )
 
             if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
+                fs.unlinkSync(filePath)
             }
         }
 
